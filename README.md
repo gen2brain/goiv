@@ -10,7 +10,7 @@ Small and simple image viewer written in pure Go.
 * Supports HTTP URLs passed as arguments.
 * Cross-platform (note: on macOS you need to install [XQuartz](https://www.xquartz.org/)).
 
-![screenshot](goo.gl/1Qgqwm)
+![screenshot](https://goo.gl/1Qgqwm)
 
 
 ### Download
