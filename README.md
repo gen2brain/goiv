@@ -86,6 +86,6 @@ Note: On Windows you need to generate manifest .syso file, use this instead:
 
 ### Planned features
 
-- [ ] draw in console on DRM/KMS and Framebuffer 
+- [ ] draw in console on DRM/KMS and Framebuffer (partially implemented) 
 - [ ] flip image vertically/horizontally
 - [ ] rotate image 90 degrees clockwise/counter-clockwise
