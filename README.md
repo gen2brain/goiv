@@ -69,19 +69,19 @@ Note: On Windows you need to generate manifest .syso file, use this instead:
 
 * View all images in a directory
 
-    goiv /path/to/dir/*
+    `goiv /path/to/dir/*`
 
 * View all JPEG's in all subdirectories
 
-    find . -iname "*.jpg" | goiv
+    `find . -iname "*.jpg" | goiv`
 
 * Delete current image when enter is pressed
 
-    goiv * | xargs rm
+    `goiv * | xargs rm`
 
 * Rotate current image when enter is pressed
 
-    goiv * | xargs -i convert -rotate 90 {} {}
+    `goiv * | xargs -i convert -rotate 90 {} {}`
 
 
 ### Planned features
