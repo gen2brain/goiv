@@ -63,11 +63,6 @@ func displayX11(images []string, width, height int) {
 		fmt.Fprintf(os.Stderr, "WmWindowTypeSet: %s\n", err.Error())
 	}
 
-	err = ewmh.WmIconNameSet(X, win.Id, "cmst")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "WmIconNameSet: %s\n", err.Error())
-	}
-
 	win.Listen(xproto.EventMaskKeyPress, xproto.EventMaskButtonRelease, xproto.EventMaskStructureNotify, xproto.EventMaskExposure)
 
 	idx := 0
