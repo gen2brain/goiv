@@ -38,31 +38,31 @@ Note: On Windows you need to generate manifest .syso file, use this instead:
 
 * j / Right / PageDown / Space
 
-    Next image
+    `Next image`
 
 * k / Left / PageUp
 
-    Previous image
+    `Previous image`
 
 * f / F11
 
-    Fullscreen
+    `Fullscreen`
 
 * [ / ]
 
-    Go 10 images back/forward
+    `Go 10 images back/forward`
 
 * , / .
 
-    Go to first/last image
+    `Go to first/last image`
 
 * q / Escape
 
-    Quit
+    `Quit`
 
 * Enter
 
-    Print current image path to stdout
+    `Print current image path to stdout`
 
 
 ### Example usage
