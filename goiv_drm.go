@@ -97,7 +97,10 @@ func displayDRM(images []string) error {
 			return err
 		}
 
-		img = scale(img, int(msets[0].fb.fb.Width), int(msets[0].fb.fb.Height))
+		img, err = scale(img, int(msets[0].fb.fb.Width), int(msets[0].fb.fb.Height))
+		if err != nil {
+			return err
+		}
 
 		bounds := img.Bounds()
 

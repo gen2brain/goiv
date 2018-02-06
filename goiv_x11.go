@@ -93,7 +93,12 @@ func displayX11(images []string, width, height int) {
 		}
 
 		ximg = xgraphics.New(X, image.Rect(0, 0, rect.Width(), rect.Height()))
-		i := scale(img, rect.Width(), rect.Height())
+
+		i, err := scale(img, rect.Width(), rect.Height())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "scale: %s\n", err.Error())
+		}
+
 		offset := (rect.Width() - i.Bounds().Max.X) / 2
 		draw.Draw(ximg, i.Bounds().Add(image.Pt(offset, 0)), i, image.ZP, draw.Over)
 

@@ -1,3 +1,5 @@
+// +build !imagick
+
 package main
 
 import (
@@ -80,6 +82,6 @@ func downloadURL(url string) ([]byte, error) {
 }
 
 // scale scales image keeping aspect ratio.
-func scale(img image.Image, width, height int) image.Image {
-	return resize.Resize(0, uint(height), img, resize.NearestNeighbor)
+func scale(img image.Image, width, height int) (image.Image, error) {
+	return resize.Resize(0, uint(height), img, resize.NearestNeighbor), nil
 }

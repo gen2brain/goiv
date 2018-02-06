@@ -54,7 +54,10 @@ func displayFB(images []string) error {
 			return err
 		}
 
-		img = scale(img, mode.Geometry.XRes, mode.Geometry.YRes)
+		img, err = scale(img, mode.Geometry.XRes, mode.Geometry.YRes)
+		if err != nil {
+			return err
+		}
 
 		fbb := fb.Bounds()
 		imgb := img.Bounds()
