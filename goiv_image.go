@@ -29,12 +29,18 @@ func init() {
 }
 
 // decode decodes image.
-func decode(filename string) (image.Image, error) {
+func decode(filename string, width, height int) (img image.Image, err error) {
 	if isURL(filename) {
-		return decodeURL(filename)
+		img, err = decodeURL(filename)
+	} else {
+		img, err = decodeFile(filename)
 	}
 
-	return decodeFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return scale(img, width, height)
 }
 
 // decodeFile decodes image file.

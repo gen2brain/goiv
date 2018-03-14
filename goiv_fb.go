@@ -49,12 +49,7 @@ func displayFB(images []string) error {
 	var img image.Image
 
 	update := func() error {
-		img, err = decode(images[idx])
-		if err != nil {
-			return err
-		}
-
-		img, err = scale(img, mode.Geometry.XRes, mode.Geometry.YRes)
+		img, err = decode(images[idx], mode.Geometry.XRes, mode.Geometry.YRes)
 		if err != nil {
 			return err
 		}

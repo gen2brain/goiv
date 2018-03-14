@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/xgb"
+	mshm "github.com/BurntSushi/xgb/shm"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
@@ -16,6 +17,7 @@ import (
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xgraphics"
 	"github.com/BurntSushi/xgbutil/xwindow"
+	"github.com/gen2brain/shm"
 )
 
 const (
@@ -36,6 +38,12 @@ func displayX11(images []string, width, height int) {
 		os.Exit(1)
 	}
 
+	useShm := true
+	err = mshm.Init(X.Conn())
+	if err != nil {
+		useShm = false
+	}
+
 	keybind.Initialize(X)
 	mousebind.Initialize(X)
 
@@ -48,7 +56,7 @@ func displayX11(images []string, width, height int) {
 	defer win.Destroy()
 
 	win.Create(X.RootWin(), 0, 0, width, height, xproto.CwBackPixel, 0x000000)
-	win.Change(xproto.CwBackingStore, xproto.BackingStoreWhenMapped)
+	win.Change(xproto.CwBackingStore, xproto.BackingStoreAlways)
 
 	win.WMGracefulClose(func(w *xwindow.Window) {
 		xevent.Detach(w.X, w.Id)
@@ -73,11 +81,55 @@ func displayX11(images []string, width, height int) {
 		fmt.Fprintf(os.Stderr, "Geometry: %s\n", err.Error())
 	}
 
+	var shmId int
+	var seg mshm.Seg
+	var data []byte
+
 	var img image.Image
-	var ximg *xgraphics.Image = xgraphics.New(X, image.Rect(0, 0, rect.Width(), rect.Height()))
+	var ximg *xgraphics.Image
+
+	newImage := func() *xgraphics.Image {
+		var i *xgraphics.Image
+
+		if useShm {
+			shmSize := rect.Width() * rect.Height() * 4
+
+			shmId, err = shm.Get(shm.IPC_PRIVATE, shmSize, shm.IPC_CREAT|0777)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Get: %s\n", err.Error())
+			}
+
+			seg, err = mshm.NewSegId(X.Conn())
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "NewSegId: %s\n", err.Error())
+			}
+
+			data, err = shm.At(shmId, 0, 0)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "At: %s\n", err.Error())
+			}
+
+			mshm.Attach(X.Conn(), seg, uint32(shmId), false)
+
+			i = &xgraphics.Image{
+				X:      X,
+				Pixmap: 0,
+				Pix:    data,
+				Stride: 4 * rect.Width(),
+				Rect:   image.Rect(0, 0, rect.Width(), rect.Height()),
+				Subimg: false,
+			}
+		} else {
+			i = xgraphics.New(X, image.Rect(0, 0, rect.Width(), rect.Height()))
+		}
+
+		return i
+	}
+
+	ximg = newImage()
 
 	loadImage := func() {
-		img, err = decode(images[idx])
+		img, err = decode(images[idx], rect.Width(), rect.Height())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			return
@@ -92,7 +144,13 @@ func displayX11(images []string, width, height int) {
 			ximg = nil
 		}
 
-		ximg = xgraphics.New(X, image.Rect(0, 0, rect.Width(), rect.Height()))
+		if useShm {
+			mshm.Detach(X.Conn(), seg)
+			shm.Rm(shmId)
+			shm.Dt(data)
+		}
+
+		ximg = newImage()
 
 		i, err := scale(img, rect.Width(), rect.Height())
 		if err != nil {
@@ -114,13 +172,33 @@ func displayX11(images []string, width, height int) {
 			fmt.Fprintf(os.Stderr, "WmNameSet: %s\n", err.Error())
 		}
 
-		err = ximg.CreatePixmap()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "CreatePixmap: %s\n", err.Error())
-		}
+		if useShm {
+			pid, err := xproto.NewPixmapId(ximg.X.Conn())
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "NewPixmapId: %s\n", err.Error())
+			}
 
-		ximg.XDraw()
-		ximg.XExpPaint(win.Id, 0, 0)
+			mshm.CreatePixmap(X.Conn(), pid, xproto.Drawable(ximg.X.RootWin()),
+				uint16(ximg.Bounds().Dx()), uint16(ximg.Bounds().Dy()),
+				ximg.X.Screen().RootDepth, seg, 0)
+
+			ximg.Pixmap = pid
+
+			mshm.PutImage(X.Conn(), xproto.Drawable(ximg.Pixmap), ximg.X.GC(),
+				uint16(ximg.Bounds().Dx()), uint16(ximg.Bounds().Dy()),
+				0, 0, 0, 0, 0, 0, ximg.X.Screen().RootDepth,
+				xproto.ImageFormatZPixmap, 0, seg, 0)
+
+			ximg.XExpPaint(win.Id, 0, 0)
+		} else {
+			err = ximg.CreatePixmap()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "CreatePixmap: %s\n", err.Error())
+			}
+
+			ximg.XDraw()
+			ximg.XExpPaint(win.Id, 0, 0)
+		}
 
 		state |= drawn
 	}
@@ -148,14 +226,16 @@ func displayX11(images []string, width, height int) {
 		if keybind.KeyMatch(xu, "Left", e.State, e.Detail) || keybind.KeyMatch(xu, "Page_Up", e.State, e.Detail) || keybind.KeyMatch(xu, "k", e.State, e.Detail) {
 			if idx != 0 {
 				idx -= 1
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		} else if keybind.KeyMatch(xu, "Right", e.State, e.Detail) || keybind.KeyMatch(xu, "Page_Down", e.State, e.Detail) ||
 			keybind.KeyMatch(xu, "j", e.State, e.Detail) || keybind.KeyMatch(xu, " ", e.State, e.Detail) {
 			if idx != len(images)-1 {
 				idx += 1
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		}
@@ -170,24 +250,28 @@ func displayX11(images []string, width, height int) {
 		if keybind.KeyMatch(X, "[", e.State, e.Detail) {
 			if idx-10 >= 0 {
 				idx -= 10
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		} else if keybind.KeyMatch(X, "]", e.State, e.Detail) {
 			if idx+10 <= len(images)-1 {
 				idx += 10
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		}
 
 		if keybind.KeyMatch(X, ",", e.State, e.Detail) {
 			idx = 0
-			state = none
+			state &= loaded
+			state &= drawn
 			update()
 		} else if keybind.KeyMatch(X, ".", e.State, e.Detail) {
 			idx = len(images) - 1
-			state = none
+			state &= loaded
+			state &= drawn
 			update()
 		}
 
@@ -200,13 +284,15 @@ func displayX11(images []string, width, height int) {
 		if e.Detail == 1 {
 			if idx != len(images)-1 {
 				idx += 1
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		} else if e.Detail == 3 {
 			if idx != 0 {
 				idx -= 1
-				state = none
+				state &= loaded
+				state &= drawn
 				update()
 			}
 		}
@@ -238,4 +324,10 @@ func displayX11(images []string, width, height int) {
 
 	win.Map()
 	xevent.Main(X)
+
+	if useShm {
+		mshm.Detach(X.Conn(), seg)
+		shm.Rm(shmId)
+		shm.Dt(data)
+	}
 }

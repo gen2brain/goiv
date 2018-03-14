@@ -92,12 +92,7 @@ func displayDRM(images []string) error {
 	update := func() error {
 		var off uint32
 
-		img, err := decode(images[idx])
-		if err != nil {
-			return err
-		}
-
-		img, err = scale(img, int(msets[0].fb.fb.Width), int(msets[0].fb.fb.Height))
+		img, err := decode(images[idx], int(msets[0].fb.fb.Width), int(msets[0].fb.fb.Height))
 		if err != nil {
 			return err
 		}
