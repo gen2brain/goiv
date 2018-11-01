@@ -312,6 +312,8 @@ func displayX11(images []string, width, height int) {
 
 	cbExp := xevent.ExposeFun(func(xu *xgbutil.XUtil, e xevent.ExposeEvent) {
 		if e.ExposeEvent.Count == 0 {
+			state &= drawn
+			state &= scaled
 			update()
 		}
 	})
