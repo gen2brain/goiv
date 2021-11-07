@@ -9,7 +9,7 @@ import (
 	"image/draw"
 	"os"
 
-	"github.com/gen2brain/framebuffer"
+	"github.com/maugsburger/framebuffer"
 	"github.com/pkg/term"
 )
 
